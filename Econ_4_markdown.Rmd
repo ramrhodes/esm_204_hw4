@@ -1,0 +1,314 @@
+---
+title: "ESM 204 - HW 4"
+author: "Janelle Christiansan, Michael Wells & Rachel Rhodes"
+date: "5/25/2020"
+output: html_document
+---
+
+# Climate Change Model
+
+The following climate-economic model assesses......
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,
+                      message = FALSE,
+                      warning = FALSE)
+```
+
+```{r}
+#-------------------------------
+library(tidyverse)
+library(janitor)
+library(stargazer)
+library(knitr)
+library(kableExtra)
+library(data.table)
+library(purrr)
+library(wesanderson)
+##-----------------------
+```
+
+#### Model Parameters
+```{r, include=TRUE,echo=TRUE}
+#------------------------
+#Variables
+delta <- as.numeric(0.005)
+eta <- as.numeric(0.5)
+g <- as.numeric(0.01)
+beta <- as.numeric(0.05)
+y <- as.numeric(0:200)
+
+##-----------------------
+#Equation 1: Temperature over time
+temp <- function(t,T){
+  tau <- min(T*t/100,T)
+  return(tau)
+}
+
+##-----------------------
+#Equation 2: Activity retained over time 
+K <- function(temp){
+  output <- exp(-beta*(temp^2))
+  return(output)
+}
+
+##-----------------------
+#Equation 3: Total consumption over time
+C <- function(K,t){
+  output <- K*exp(g*t)
+  return(output)
+}
+
+#-------------------------------
+#Equation 4: Society's utility 
+U <- function(C){
+  output <- (C^(1-eta)/(1-eta))
+  return(output)
+}
+```
+
+
+```{r}
+#-----------------------------------------
+#Create Dataframe
+
+df <- data.frame("year"= y) %>%
+  group_by(year) %>% 
+  mutate(temp_0 = temp(year,0),
+         K_0=K(temp(year,0)),
+         C_0=C(K(temp(year,0)),year),
+         U_0=U(C(K(temp(year,0)),year)),
+         temp_2 = temp(year,2),
+         K_2=K(temp(year,2)),
+         C_2=C(K(temp(year,2)),year),
+         U_2=U(C(K(temp(year,2)),year)),
+         temp_8 = temp(year,8),
+         K_8=K(temp(year,8)),
+         C_8=C(K(temp(year,8)),year),
+         U_8=U(C(K(temp(year,8)),year)))
+
+
+```
+
+
+#### Results
+```{r}
+#Plot temps over time
+
+df_temp <- df %>% 
+  select(year,temp_0, temp_2, temp_8) %>% 
+  pivot_longer(-year, names_to = "Scenario", values_to = "temperature") %>% 
+  mutate(Scenario = replace(Scenario, Scenario == "temp_0", "No Climate Change")) %>%
+  mutate(Scenario = replace(Scenario, Scenario == "temp_2", "Modest Climate Change")) %>%
+  mutate(Scenario = replace(Scenario, Scenario == "temp_8", "Extreme Climate Change")) 
+
+
+ggplot(df_temp, aes(x = year, y = temperature, color = Scenario))+
+  geom_line(aes(x = year,
+                 y = temperature,
+                 color = Scenario))+
+  scale_color_manual(values = wes_palette("Darjeeling1"))+
+  labs(x="Years",y="Temperature")+
+  ggtitle("Temperature Over 200 Years")+
+  theme_minimal()
+```
+***Figure 1*** *Predicted temperature over 200 years under three different climate change scenarios: no climate change (T=0), modest climate change (T=2), and extreme climate change (T=8).*
+
+
+
+```{r}
+#------------------------------------------
+#Plot consumption 
+
+df_consump <- df %>% 
+  select(year,C_0, C_2, C_8) %>% 
+  pivot_longer(-year, names_to = "Scenario", values_to = "Consumption") %>% 
+  mutate(Scenario = replace(Scenario, Scenario == "C_0", "No Climate Change")) %>%
+  mutate(Scenario = replace(Scenario, Scenario == "C_2", "Modest Climate Change")) %>%
+  mutate(Scenario = replace(Scenario, Scenario == "C_8", "Extreme Climate Change")) 
+
+ggplot(df_temp, aes(x = year, y = Consumption, color = Scenario))+
+  geom_line(aes(x = year,
+                 y = temperature,
+                 color = Scenario))+
+  scale_color_manual(values = wes_palette("Darjeeling1"))+
+  labs(x="Years",y="Total Consumption")+
+  ggtitle("Total Consumption Over 200 Years")+
+  theme_minimal()
+```
+***Figure 2*** *Predicted total consumption over 200 years under three different climate change scenarios: no climate change (T=0), modest climate change (T=2), and extreme climate change (T=8).*
+
+
+
+```{r}
+#------------------------------------------
+#Plot undiscounted utility
+
+df_utility<- df %>% 
+  select(year,U_0, U_2, U_8) %>% 
+  pivot_longer(-year, names_to = "Scenario", values_to = "Utility") %>% 
+  mutate(Scenario = replace(Scenario, Scenario == "U_0", "No Climate Change")) %>%
+  mutate(Scenario = replace(Scenario, Scenario == "U_2", "Modest Climate Change")) %>%
+  mutate(Scenario = replace(Scenario, Scenario == "U_8", "Extreme Climate Change")) 
+
+ggplot(df_temp, aes(x = year, y = Utility, color = Scenario))+
+  geom_line(aes(x = year,
+                 y = temperature,
+                 color = Scenario))+
+  scale_color_manual(values = wes_palette("Darjeeling1"))+
+  labs(x="Years",y="Utility")+
+  ggtitle("Society's Utility Over 200 Years")+
+  theme_minimal()
+
+```
+***Figure 3*** *Predicted undiscounted utility to society over 200 years under three different climate change scenarios: no climate change (T=0), modest climate change (T=2), and extreme climate change (T=8).*
+
+```{r, include=TRUE, results="hide"}
+#-------------------------------------------
+
+#2a.Present value over the next 200 years with moderate climate change (t=4.4) compared to no climate change (T=0)
+
+r <- delta +eta*g
+
+df_4.4 <- data.frame("year"= y) %>%
+  group_by(year) %>% 
+  mutate(temp_4.4 = temp(year,4.4),
+         K_4.4=K(temp(year,4.4)),
+         C_4.4=C(K(temp(year,4.4)),year),
+         U_4.4=U(C(K(temp(year,4.4)),year)),
+         pv_u_4.4=U_4.4/((1+r)^year),
+         temp_0 = temp(year,0),
+         K_0=K(temp(year,0)),
+         C_0=C(K(temp(year,0)),year),
+         U_0=U(C(K(temp(year,0)),year)),
+         pv_u_0=U_0/((1+r)^year))
+
+npv_pv_u_4.4 <- sum(df_4.4$pv_u_4.4)
+npv_pv_u_0 <- sum(df_4.4$pv_u_0)
+
+L <- ((npv_pv_u_4.4/npv_pv_u_0)-1)*100
+```
+
+#### Analysis
+
+2 (A) As shown in Table 1, the present value utility over 200 years with moderate climate change (T = 4.4) is `r npv_pv_u_4.4` compared to the present value utility with no climate change (T = 0) which is `r npv_pv_u_0`.
+
+[insert Table]
+```{r, include=TRUE, results="hide"}
+#--------------------------------
+
+#2b: new variables w/ 10% increase
+
+
+T_10pct <- 4.4*1.1
+g_10pct <- g*1.1
+eta_10pct <- eta*1.1
+beta_10pct <- beta*1.1
+
+#-----------------------------------------
+#2b cont'd: 10% change in T
+df_T_10pct <- data.frame("year"= y) %>%
+  group_by(year) %>% 
+  mutate(temp_T_10pct = temp(year,T_10pct),
+         K_T_10pct=K(temp(year,T_10pct)),
+         C_T_10pct=C(K(temp(year,T_10pct)),year),
+         U_T_10pct=U(C(K(temp(year,T_10pct)),year)),
+         pv_u_T_10pct=U_T_10pct/((1+r)^year),
+         temp_0 = temp(year,0),
+         K_0=K(temp(year,0)),
+         C_0=C(K(temp(year,0)),year),
+         U_0=U(C(K(temp(year,0)),year)),
+         pv_u_0=U_0/((1+r)^year))
+
+npv_pv_u_T_10pct <- sum(df_T_10pct$pv_u_T_10pct)
+npv_pv_u_0 <- sum(df_T_10pct$pv_u_0)
+
+L_T10pct <- ((npv_pv_u_T_10pct/npv_pv_u_0)-1)*100
+
+#-------------------------------------------
+
+#2b cont'd: 10% change in g
+
+r_g_10pct <- delta +eta*g_10pct
+
+C_g10pct <- function(K,t){
+  output <- K*exp(g_10pct*t)
+  print(output)
+}
+
+df_g_10pct <- data.frame("year"= y) %>%
+  group_by(year) %>% 
+  mutate(temp_4.4 = temp(year,4.4),
+         K_4.4=K(temp(year,4.4)),
+         C_4.4=C_g10pct(K(temp(year,4.4)),year),
+         U_4.4=U(C_g10pct(K(temp(year,4.4)),year)),
+         pv_u_4.4=U_4.4/((1+r_g_10pct)^year),
+         temp_0 = temp(year,0),
+         K_0=K(temp(year,0)),
+         C_0=C_g10pct(K(temp(year,0)),year),
+         U_0=U(C_g10pct(K(temp(year,0)),year)),
+         pv_u_0=U_0/((1+r_g_10pct)^year))
+
+npv_pv_u_4.4_g10pct <- sum(df_g_10pct$pv_u_4.4)
+npv_pv_u_0_g10pct <- sum(df_g_10pct$pv_u_0)
+
+L_g10pct <- ((npv_pv_u_4.4_g10pct/npv_pv_u_0_g10pct)-1)*100
+
+#-----------------------------------------
+#2b cont'd: 10% change in eta
+
+r_eta10pct <- delta +eta_10pct*g
+
+U_eta10pct <- function(C){
+  output <- (C^(1-eta_10pct)/(1-eta_10pct))
+  print(output)
+}
+
+df_eta10pct <- data.frame("year"= y) %>%
+  group_by(year) %>% 
+  mutate(temp_4.4 = temp(year,4.4),
+         K_4.4=K(temp(year,4.4)),
+         C_4.4=C(K(temp(year,4.4)),year),
+         U_4.4=U_eta10pct(C(K(temp(year,4.4)),year)),
+         pv_u_4.4=U_4.4/((1+r_eta10pct)^year),
+         temp_0 = temp(year,0),
+         K_0=K(temp(year,0)),
+         C_0=C(K(temp(year,0)),year),
+         U_0=U_eta10pct(C(K(temp(year,0)),year)),
+         pv_u_0=U_0/((1+r_eta10pct)^year))
+
+npv_pv_u_4.4_eta10pct <- sum(df_eta10pct$pv_u_4.4)
+npv_pv_u_0_eta10pct <- sum(df_eta10pct$pv_u_0)
+
+L_eta10pct <- ((npv_pv_u_4.4_eta10pct/npv_pv_u_0_eta10pct)-1)*100
+
+#-----------------------
+#2b cont'd:  10% change in beta
+
+K_beta10pct <- function(temp){
+  output <- exp(-beta_10pct*(temp^2))
+  print(output)
+}
+
+df_beta10pct <- data.frame("year"= y) %>%
+  group_by(year) %>% 
+  mutate(temp_4.4 = temp(year,4.4),
+         K_4.4=K_beta10pct(temp(year,4.4)),
+         C_4.4=C(K_beta10pct(temp(year,4.4)),year),
+         U_4.4=U(C(K_beta10pct(temp(year,4.4)),year)),
+         pv_u_4.4=U_4.4/((1+r)^year),
+         temp_0 = temp(year,0),
+         K_0=K(temp(year,0)),
+         C_0=C(K(temp(year,0)),year),
+         U_0=U(C(K(temp(year,0)),year)),
+         pv_u_0=U_0/((1+r)^year))
+
+npv_pv_u_4.4_beta10pct <- sum(df_beta10pct$pv_u_4.4)
+npv_pv_u_0_beta10pct <- sum(df_beta10pct$pv_u_0)
+
+L_beta10pct <- ((npv_pv_u_4.4_beta10pct/npv_pv_u_0_beta10pct)-1)*100
+
+show(L_beta10pct)
+```
+
