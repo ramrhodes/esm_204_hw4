@@ -1,6 +1,6 @@
 ---
 title: "ESM 204 - HW 4"
-author: "Janelle Christiansan, Michael Wells & Rachel Rhodes"
+author: "Janelle Chistensen, Michael Wells & Rachel Rhodes"
 date: "5/25/2020"
 output: html_document
 ---
@@ -92,7 +92,7 @@ df <- data.frame("year"= y) %>%
 ```
 
 
-#### Results
+#### PLOTS
 ```{r}
 #Plot temps over time
 
@@ -137,6 +137,8 @@ ggplot(df_temp, aes(x = year, y = Consumption, color = Scenario))+
   ggtitle("Total Consumption Over 200 Years")+
   theme_minimal()
 ```
+
+
 ***Figure 2*** *Predicted total consumption over 200 years under three different climate change scenarios: no climate change (T=0), modest climate change (T=2), and extreme climate change (T=8).*
 
 
@@ -162,6 +164,8 @@ ggplot(df_temp, aes(x = year, y = Utility, color = Scenario))+
   theme_minimal()
 
 ```
+
+
 ***Figure 3*** *Predicted undiscounted utility to society over 200 years under three different climate change scenarios: no climate change (T=0), modest climate change (T=2), and extreme climate change (T=8).*
 
 ```{r, include=TRUE, results="hide"}
@@ -188,11 +192,18 @@ npv_pv_u_4.4 <- sum(df_4.4$pv_u_4.4)
 npv_pv_u_0 <- sum(df_4.4$pv_u_0)
 
 L <- ((npv_pv_u_4.4/npv_pv_u_0)-1)*100
+
+# Create a table
+table_4.4 <- data.frame(scenario =c("No Climate Change", "Moderate Climate Change", "Percent Loss"),
+                        net_present_value = c(npv_pv_u_0, npv_pv_u_4.4, L))
+
+
 ```
 
-#### Analysis
+#### ANALYSIS 
 
-2 (A) As shown in Table 1, the present value utility over 200 years with moderate climate change (T = 4.4) is `r npv_pv_u_4.4` compared to the present value utility with no climate change (T = 0) which is `r npv_pv_u_0`.
+##### 2.A Net Present Value & Percent Loss 
+As shown in Table 1, the present value utility over 200 years with moderate climate change (T = 4.4) is `r npv_pv_u_4.4` compared to the present value utility with no climate change (T = 0) which is `r npv_pv_u_0`. There is 
 
 [insert Table]
 ```{r, include=TRUE, results="hide"}
@@ -310,5 +321,67 @@ npv_pv_u_0_beta10pct <- sum(df_beta10pct$pv_u_0)
 L_beta10pct <- ((npv_pv_u_4.4_beta10pct/npv_pv_u_0_beta10pct)-1)*100
 
 show(L_beta10pct)
+
+# Percent change in L
+L_eta <- ((L_eta10pct/L)-1)*100
+L_beta <- ((L_beta10pct/L)-1)*100
+L_g <- ((L_g10pct/L)-1)*100
+L_T <- ((L_T10pct/L)-1)*100
+```
+
+```{r}
+#-------------------------------
+#2c 
+
+#theta^(1-eta) * npv_pv_u_4.4 = npv_pv_u_0
+
+theta <- function(npv_pv_u_4.4, npv_pv_u_0)
+{
+  output <- 1 - (npv_pv_u_4.4/npv_pv_u_0)^((1-eta)^-1)
+  return(output)
+}
+
+theta(npv_pv_u_4.4,npv_pv_u_0)
+
+```
+
+
+```{r}
+#--------------------------------
+#2d. Uncertainty
+## T = 2 w probability of 0.2
+## T = 4 w probability of 0.5
+## T = 6 with a probability of 0.3
+
+## p * utility(T=2) + p * utillity(T=4) + p * utility(T=6)
+
+df_uncertain <- data.frame("year"= y) %>%
+  group_by(year) %>% 
+  mutate(temp_2 = temp(year,2),
+         K_2=K(temp(year,2)),
+         C_2=C(K(temp(year,2)),year),
+         U_2=U(C(K(temp(year,2)),year)),
+         pv_u_2=U_2/((1+r)^year),
+         temp_4 = temp(year,4),
+         K_4=K(temp(year,4)),
+         C_4=C(K(temp(year,4)),year),
+         U_4=U(C(K(temp(year,4)),year)),
+         pv_u_4=U_4/((1+r)^year),
+         temp_6 = temp(year,6),
+         K_6=K(temp(year,6)),
+         C_6=C(K(temp(year,6)),year),
+         U_6=U(C(K(temp(year,6)),year)),
+         pv_u_6=U_6/((1+r)^year))
+
+npv_pv_u_2 <- sum(df_uncertain$pv_u_2)
+npv_pv_u_4 <- sum(df_uncertain$pv_u_4)
+npv_pv_u_6 <- sum(df_uncertain$pv_u_6)
+
+npv_pv_u_uncertain <- (0.2 * npv_pv_u_2) + (0.5 * npv_pv_u_4) + (0.3 * npv_pv_u_6)
+
+theta(npv_pv_u_uncertain, npv_pv_u_0)
+
+
+
 ```
 
